@@ -3,14 +3,17 @@ from streamlit_chat import message
 from langchain.chains import ConversationalRetrievalChain
 from langchain.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.llms import CTransformers
+from langchain_community.llms import HuggingFaceHub
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.memory import ConversationBufferMemory
+from langchain.document_loaders import TextLoader
+
+import os
 
 # Function to load documents 
 def load_documents():
-    loader = DirectoryLoader('data/', glob="*.pdf", loader_cls=PyPDFLoader)
+    loader = DirectoryLoader('data/', glob="*.txt", loader_cls=TextLoader)
     documents = loader.load()
     return documents
 
@@ -32,14 +35,45 @@ def create_vector_store(text_chunks, embeddings):
 
 # Function to create LLMS model
 def create_llms_model():
-    llm = CTransformers(model="mistral-7b-instruct-v0.1.Q4_K_M.gguf", config={'max_new_tokens': 128, 'temperature': 0.01})
+    os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
+    llm = HuggingFaceHub(
+        repo_id="somosnlp/Phi-2-LenguajeClaro",
+        model_kwargs={
+        "max_new_tokens": 250,  # Ajusta según sea necesario
+        # O bien, si prefieres aumentar max_length
+        # "max_length": 512,
+        "repetition_penalty": 1.1,
+        "temperature": 0.5,
+        "top_p": 0.9,
+        "return_full_text": False
+    }
+        # model_kwargs={
+        #     "max_new_tokens": 512,
+        #     "repetition_penalty": 1.1,
+        #     "temperature": 0.5,
+        #     "top_p": 0.9,
+        #     "return_full_text": False
+        # }
+    )
     return llm
-
+st.set_page_config(
+    page_title="IEEE CIS UNI ChatBot",
+    page_icon="./logoieeecisuni.jpg"
+)
 # Initialize Streamlit app
-st.title("Job Interview Prep ChatBot")
-st.title("Personalized Job Success Friend")
+st.markdown(
+    """
+    <style>
+    .title {
+        color: #01285D;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown("<h1 class='title'>👾 IEEE CIS UNI ChatBot 🤖</h1>", unsafe_allow_html=True)
 st.markdown('<style>h1{color: orange; text-align: center;}</style>', unsafe_allow_html=True)
-st.subheader('Get Your Desired Job 💪')
 st.markdown('<style>h3{color: pink; text-align: center;}</style>', unsafe_allow_html=True)
 
 # loading of documents
@@ -57,16 +91,6 @@ vector_store = create_vector_store(text_chunks, embeddings)
 # Create LLMS model
 llm = create_llms_model()
 
-# Initialize conversation history
-if 'history' not in st.session_state:
-    st.session_state['history'] = []
-
-if 'generated' not in st.session_state:
-    st.session_state['generated'] = ["Hello! Ask me anything about 🤗"]
-
-if 'past' not in st.session_state:
-    st.session_state['past'] = ["Hey! 👋"]
-
 # Create memory
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
@@ -81,22 +105,36 @@ def conversation_chat(query):
     st.session_state['history'].append((query, result["answer"]))
     return result["answer"]
 
+# Initialize conversation history
+if 'history' not in st.session_state:
+    st.session_state['history'] = []
+
+if 'generated' not in st.session_state:
+    st.session_state['generated'] = ["Hola hasme una pregunta sobre IEEE CIS UNI 🤗"]
+
+if 'past' not in st.session_state:
+    st.session_state['past'] = ["Hola!"]
+
 # Display chat history
 reply_container = st.container()
 container = st.container()
 
 with container:
     with st.form(key='my_form', clear_on_submit=True):
-        user_input = st.text_input("Question:", placeholder="Ask about your Job Interview", key='input')
+        user_input = st.text_input("Question:", placeholder="Has tu pregunta sobre IEEE CIS UNI", key='input')
         submit_button = st.form_submit_button(label='Send')
 
     if submit_button and user_input:
         output = conversation_chat(user_input)
         st.session_state['past'].append(user_input)
         st.session_state['generated'].append(output)
-
+        
+with st.sidebar:
+    st.image("logoieeecisuni.jpg", use_column_width=True)
+    st.write("Este chatbot es un proyecto en constante mejora de IEEE CIS UNI, nos permite saber más sobre IEEE CIS UNI atraves de este chat")
+    
 if st.session_state['generated']:
     with reply_container:
         for i in range(len(st.session_state['generated'])):
-            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="thumbs")
-            message(st.session_state["generated"][i], key=str(i), avatar_style="fun-emoji")
+            message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="pixel-art")
+            message(st.session_state["generated"][i], key=str(i), avatar_style="bottts")
